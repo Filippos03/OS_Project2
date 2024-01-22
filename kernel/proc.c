@@ -681,3 +681,16 @@ procdump(void)
     printf("\n");
   }
 }
+
+int 
+setpriority(int num)
+{
+  if(num > 20 || num < 1){
+    return -1;
+  }
+  else{
+    struct proc *p = myproc();
+    printf("The Process with PID: %d now has a priority value of %d.\n", p->pid, num);
+    return 0;
+  }
+}

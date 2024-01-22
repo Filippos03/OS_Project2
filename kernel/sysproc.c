@@ -95,3 +95,11 @@ sys_freemem(void)
 {
   return calc_freemem();
 }
+
+uint64
+sys_setpriority(void)
+{
+  int pty;
+  argint(0, &pty);
+  return setpriority(pty);
+}
