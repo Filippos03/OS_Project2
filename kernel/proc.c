@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
 
 struct cpu cpus[NCPU];
 
@@ -124,6 +125,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->pty = 10;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -692,5 +694,27 @@ setpriority(int num)
     struct proc *p = myproc();
     printf("The Process with PID: %d now has a priority value of %d.\n", p->pid, num);
     return 0;
+  }
+}
+
+struct pstat*
+pstatinit(void)
+{
+  struct pstat ps;
+  ps.active_proc = 0;
+  return &ps;
+}
+
+int
+getinfo(struct pstat* ps)
+{
+  struct proc *p = pstatinit();
+  for (p=proc; p<&proc[NPROC]; p++){
+    acquire(&p->lock);
+    if (p->state != UNUSED){
+      ps->active_proc++;
+      int x = ps->active_proc;
+
+    }
   }
 }

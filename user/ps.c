@@ -4,9 +4,6 @@
 
 int main(){
 
-    setpriority(5);
-    setpriority(24);
-    setpriority(4);
-    setpriority(-3);
+    
     exit(0);
 }
