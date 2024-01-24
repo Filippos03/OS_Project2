@@ -125,7 +125,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->pty = 10;
+  p->pty = 10;    // INITIALIZING PRIORITY (10) 
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -252,6 +252,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->pty = 10;
 
   release(&p->lock);
 }
@@ -692,29 +693,57 @@ setpriority(int num)
   }
   else{
     struct proc *p = myproc();
+    acquire(&p->lock);
+    p->pty = num;
+    release(&p->lock);
     printf("The Process with PID: %d now has a priority value of %d.\n", p->pid, num);
     return 0;
   }
 }
 
-struct pstat*
-pstatinit(void)
-{
-  struct pstat ps;
-  ps.active_proc = 0;
-  return &ps;
-}
-
 int
-getinfo(struct pstat* ps)
+getpinfo(struct pstat* ps)
 {
-  struct proc *p = pstatinit();
+  struct pstat pst;
+  struct proc *p;
+  pst.active_proc = 0;
+  printf("ok\n");
   for (p=proc; p<&proc[NPROC]; p++){
-    acquire(&p->lock);
     if (p->state != UNUSED){
-      ps->active_proc++;
-      int x = ps->active_proc;
+      acquire(&p->lock);
+      pst.active_proc++;
+      int n = pst.active_proc;
+      pst.pid[n] = p->pid;
+      pst.pty[n] = p->pty;
+      pst.state[n] = p->state;
+      pst.sz[n] = p->sz;
+      release(&p->lock);
 
+      acquire(&wait_lock);
+      if(p->parent != 0){
+        pst.ppid[n] = p->parent->pid;
+      }
+      release(&wait_lock);
+
+      safestrcpy(pst.name[n], p->name, 16);
     }
   }
+  printf("No  NAME        PID          PPID          PTY   STATE  SIZE\n");
+  for (int i = 0; i<pst.active_proc; i++){
+      printf("%d    %s  %d     %d     %d    %d    %d\n", i, pst.name[i]
+      , pst.pid[i], pst.ppid[i], pst.pty[i], pst.state[i], pst.sz[i]);
+  }
+  if (pst.active_proc > 0){
+    //ps = &pst;
+    printf("Active procs (pls be smth >0): %d\n", pst.active_proc);
+    if(copyout(myproc()->pagetable, (uint64)ps, (char*)&pst, sizeof(struct pstat))==0){
+      return 0;
+    }
+  }
+  printf("WE FAILED ABORT!!!\n");
+  return -1;
+}
+
+void printallps(struct pstat ps){
+
 }

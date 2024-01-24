@@ -1,8 +1,3 @@
-#include "param.h"
-#include "types.h"
-
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
-
 struct pstat {
     int pid[NPROC];
     int ppid[NPROC];

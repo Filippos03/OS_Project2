@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
 
 uint64
 sys_exit(void)
@@ -102,4 +103,13 @@ sys_setpriority(void)
   int pty;
   argint(0, &pty);
   return setpriority(pty);
+}
+
+uint64
+sys_getpinfo(void)
+{
+  uint64 num;
+  argaddr(0, &num);
+  void* ptr = &num;
+  return getpinfo((struct pstat *)ptr);
 }

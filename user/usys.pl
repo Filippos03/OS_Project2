@@ -38,3 +38,4 @@ entry("sleep");
 entry("uptime");
 entry("freemem");
 entry("setpriority");
+entry("getpinfo");
