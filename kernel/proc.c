@@ -54,6 +54,7 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      p->pty = 10;
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
@@ -170,6 +171,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->pty = 0;
   p->state = UNUSED;
 }
 
@@ -449,31 +451,60 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+  uint64 pids[NPROC]; // saving the processes with the highest pty
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
+    int num = 0;  // counter
+    int max_pty = 21;
+    // Check every process and save the ones with the highest priority
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+      if(p->state == UNUSED){
+        release(&p->lock);
+        continue;
+      }
+      if(p->pty < max_pty){   // if a new maxpty is found replace it
+        pids[0] = p->pid;
+        num = 1;
+        max_pty = p->pty;
+      }
+      else if(p->pty == max_pty){   // if a ps has the same pty save its pid in the array
+        pids[num] = p->pid;
+        num++;
+      }
+      release(&p->lock);
+    }
+    char ismax; // flag
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      ismax = 0;
+      for (int i=0;i < num; i++){
+        if(p->pid == pids[i]){
+          ismax = 1;
+          break;
+        }
+      }
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {  // checking if the process is runnable
+        if(ismax){
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
       }
       release(&p->lock);
     }
   }
 }
-
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -685,10 +716,11 @@ procdump(void)
   }
 }
 
+// changes the priority of the current process into num (given argument)
 int 
 setpriority(int num)
 {
-  if(num > 20 || num < 1){
+  if(num > 20 || num < 1){  // invalid value given
     return -1;
   }
   else{
@@ -700,6 +732,7 @@ setpriority(int num)
     return 0;
   }
 }
+
 
 int
 getpinfo(struct pstat* ps)
@@ -728,22 +761,16 @@ getpinfo(struct pstat* ps)
       safestrcpy(pst.name[n], p->name, 16);
     }
   }
-  printf("No  NAME        PID          PPID          PTY   STATE  SIZE\n");
+  //printf("No  NAME        PID          PPID          PTY   STATE  SIZE\n");
   for (int i = 0; i<pst.active_proc; i++){
-      printf("%d    %s  %d     %d     %d    %d    %d\n", i, pst.name[i]
+      printf("NO: %d  NAME: %s  PID: %d  PPID: %d  PTY: %d  STATE: %d  SIZE: %d\n", i, pst.name[i]
       , pst.pid[i], pst.ppid[i], pst.pty[i], pst.state[i], pst.sz[i]);
   }
   if (pst.active_proc > 0){
     //ps = &pst;
-    printf("Active procs (pls be smth >0): %d\n", pst.active_proc);
     if(copyout(myproc()->pagetable, (uint64)ps, (char*)&pst, sizeof(struct pstat))==0){
       return 0;
     }
   }
-  printf("WE FAILED ABORT!!!\n");
   return -1;
-}
-
-void printallps(struct pstat ps){
-
 }
