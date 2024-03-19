@@ -740,7 +740,7 @@ getpinfo(struct pstat* ps)
   struct pstat pst;
   struct proc *p;
   pst.active_proc = 0;
-  printf("ok\n");
+  //printf("ok\n");
   for (p=proc; p<&proc[NPROC]; p++){
     if (p->state != UNUSED){
       acquire(&p->lock);
